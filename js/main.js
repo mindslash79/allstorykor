@@ -35,7 +35,7 @@ function startAllStoryAfterLogin() {
 
     var music = document.createElement('audio');
     music.id = 'allstoryOpeningMusic';
-    music.src = 'audio/bgm/Velvet-Shadows.mp3';
+    music.src = 'audio/bgm/Velvet%20Shadows.mp3';
     music.preload = 'auto';
     music.loop = true;
     music.volume = 0.82;
@@ -139,57 +139,46 @@ function startAllStoryAfterLogin() {
         }, 950);
     }
 
-    var playbackAttempt = 0;
-
-    function resetOpeningMedia() {
-        video.pause();
-        music.pause();
-        try { video.currentTime = 0; } catch (_) {}
-        try { music.currentTime = 0; } catch (_) {}
-    }
-
-    function showOpeningGate(attempt) {
-        if (finished || attempt !== playbackAttempt) return;
-        resetOpeningMedia();
-        gate.style.display = 'flex';
-    }
-
     function startOpening() {
-        if (finished) return;
-
-        var attempt = ++playbackAttempt;
         gate.style.display = 'none';
-        resetOpeningMedia();
+        music.currentTime = 0;
+        video.currentTime = 0;
 
-        var musicPromise;
-        var videoPromise;
-        try {
-            musicPromise = music.play();
-            videoPromise = video.play();
-        } catch (_) {
-            showOpeningGate(attempt);
-            return;
-        }
-
+        var mp = music.play();
+        var vp = video.play();
         Promise.all([
-            Promise.resolve(musicPromise),
-            Promise.resolve(videoPromise)
+            mp && mp.catch ? mp : Promise.resolve(),
+            vp && vp.catch ? vp : Promise.resolve()
         ]).catch(function() {
-            // If either stream is blocked, stop and rewind both. One user tap
-            // then starts the movie and Velvet Shadows together from 0:00.
-            showOpeningGate(attempt);
+            video.pause();
+            music.pause();
+            gate.style.display = 'flex';
         });
     }
 
     video.addEventListener('ended', showTitle);
     video.addEventListener('error', showTitle);
 
-    // Keep the gate reusable in case a browser rejects the first user attempt.
-    gate.addEventListener('click', startOpening);
+    gate.addEventListener('pointerdown', startOpening, { once: true });
+    gate.addEventListener('click', startOpening, { once: true });
 
-    // Try automatic playback first. Browsers that block audible autoplay keep
-    // the gate visible instead of silently continuing without the music.
-    startOpening();
+    // Muted video can normally autoplay; audible music may be blocked by browsers.
+    // If it is blocked, wait for one tap so movie and music start together at 0:00.
+    var audioPromise = music.play();
+    var videoPromise = video.play();
+
+    if (audioPromise && typeof audioPromise.catch === 'function') {
+        audioPromise.catch(function() {
+            video.pause();
+            music.pause();
+            gate.style.display = 'flex';
+        });
+    }
+    if (videoPromise && typeof videoPromise.catch === 'function') {
+        videoPromise.catch(function() {
+            gate.style.display = 'flex';
+        });
+    }
 };
 
 window.onload = function() {

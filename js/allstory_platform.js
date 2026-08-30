@@ -74,6 +74,7 @@
             async function onMessage(event) {
                 var data = event.data || {};
                 if (data.type !== 'allstory-auth-session' || data.nonce !== nonce || !data.session) return;
+                // The bridge is served only from the shared account site.
                 if (event.origin && event.origin !== 'https://neoul-sok-ai.vercel.app') return;
                 try {
                     var result = await client.auth.setSession({
@@ -95,6 +96,8 @@
     }
 
     function openNeoul() {
+        // Same browser/NW.js profile is intentional: the shared account domain's
+        // Supabase session is already present there after the AllStory login bridge.
         var child = window.open(CONFIG.neoulUrl + '?from=allstory', '_blank');
         if (!child) throw new Error('너울 속 아이 창을 열 수 없습니다. 팝업 허용을 확인해주세요.');
         try { child.focus(); } catch (_) {}
