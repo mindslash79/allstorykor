@@ -5,13 +5,22 @@
 
 PluginManager.setup($plugins);
 
-function startAllStoryAfterLogin() {
+async function startAllStoryAfterLogin() {
     var launched = false;
     var finished = false;
 
     document.body.style.margin = '0';
     document.body.style.background = '#000';
     document.body.style.overflow = 'hidden';
+
+    var assets;
+    try {
+        assets = window.AllStoryAssets ? await window.AllStoryAssets.ready : null;
+        window.AllStoryResolvedAssets = assets || {};
+    } catch (error) {
+        console.error('[AllStory] media load failed', error);
+        window.AllStoryResolvedAssets = {};
+    }
 
     if (typeof Scene_Title !== 'undefined') {
         Scene_Title.prototype.playTitleMusic = function() {
@@ -34,14 +43,14 @@ function startAllStoryAfterLogin() {
 
     var music = document.createElement('audio');
     music.id = 'allstoryOpeningMusic';
-    music.src = 'assets/Velvet%20Shadows.mp3';
+    music.src = assets && assets.musicUrl ? assets.musicUrl : 'assets/Velvet%20Shadows.mp3';
     music.preload = 'auto';
     music.loop = true;
     music.volume = 0.82;
 
     var video = document.createElement('video');
     video.id = 'allstoryOpeningVideo';
-    video.src = 'assets/Allstory_Opening.mp4';
+    video.src = assets && assets.openingUrl ? assets.openingUrl : 'assets/Allstory_Opening.mp4';
     video.preload = 'auto';
     video.playsInline = true;
     video.setAttribute('playsinline', '');
@@ -118,7 +127,6 @@ function startAllStoryAfterLogin() {
         finished = true;
         white.style.transition = 'opacity 0.9s ease-in-out';
         white.style.opacity = '1';
-
         setTimeout(function() {
             cleanupVideo();
             runGame();
@@ -137,12 +145,7 @@ function startAllStoryAfterLogin() {
         gate.style.display = 'none';
         music.currentTime = 0;
         video.currentTime = 0;
-        var mp = music.play();
-        var vp = video.play();
-        Promise.all([
-            mp && mp.catch ? mp : Promise.resolve(),
-            vp && vp.catch ? vp : Promise.resolve()
-        ]).catch(function() {
+        Promise.all([music.play(), video.play()]).catch(function() {
             video.pause();
             music.pause();
             gate.style.display = 'flex';
@@ -154,21 +157,12 @@ function startAllStoryAfterLogin() {
     gate.addEventListener('pointerdown', startOpening, { once: true });
     gate.addEventListener('click', startOpening, { once: true });
 
-    var audioPromise = music.play();
-    var videoPromise = video.play();
-    if (audioPromise && typeof audioPromise.catch === 'function') {
-        audioPromise.catch(function() {
-            video.pause();
-            music.pause();
-            gate.style.display = 'flex';
-        });
-    }
-    if (videoPromise && typeof videoPromise.catch === 'function') {
-        videoPromise.catch(function() {
-            gate.style.display = 'flex';
-        });
-    }
-};
+    Promise.all([music.play(), video.play()]).catch(function() {
+        video.pause();
+        music.pause();
+        gate.style.display = 'flex';
+    });
+}
 
 window.onload = function() {
     var platform = window.AllstoryPlatform;
@@ -192,12 +186,10 @@ window.onload = function() {
         gate.style.color = '#f4f4f5';
         gate.style.fontFamily = 'GameFont, sans-serif';
         gate.style.textAlign = 'center';
-
         var title = document.createElement('div');
         title.textContent = 'AllStoryKor';
         title.style.fontSize = '34px';
         title.style.letterSpacing = '0.06em';
-
         var message = document.createElement('div');
         message.id = 'allstoryAccountMessage';
         message.textContent = '우리 세상 우리 이야기의 기록을 이어가려면 계정 연결이 필요합니다.';
@@ -205,7 +197,6 @@ window.onload = function() {
         message.style.fontSize = '18px';
         message.style.lineHeight = '1.65';
         message.style.color = 'rgba(255,255,255,0.78)';
-
         var button = document.createElement('button');
         button.type = 'button';
         button.textContent = 'Google로 계속하기';
@@ -219,7 +210,6 @@ window.onload = function() {
         button.style.cursor = 'pointer';
         button.style.background = '#fff';
         button.style.color = '#18181b';
-
         gate.appendChild(title);
         gate.appendChild(message);
         gate.appendChild(button);
@@ -234,7 +224,6 @@ window.onload = function() {
             missing.message.textContent = '공용 계정 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해주세요.';
             return;
         }
-
         try {
             var result = await platform.getSession();
             var session = result.data && result.data.session;
@@ -261,6 +250,5 @@ window.onload = function() {
             }
         });
     }
-
     bootWithAccount();
 };
