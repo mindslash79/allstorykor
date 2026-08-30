@@ -33,7 +33,15 @@ jobs:
 
           for (const name of ['Map001.json', 'Tilesets.json']) {
             if (!embedded[name]) throw new Error(`Missing embedded payload: ${name}`);
-            const text = zlib.gunzipSync(Buffer.from(embedded[name], 'base64')).toString('utf8');
+            const raw = Buffer.from(embedded[name], 'base64');
+            console.log(`Checking ${name}: base64=${embedded[name].length}, gzip=${raw.length}`);
+            let text;
+            try {
+              text = zlib.gunzipSync(raw).toString('utf8');
+            } catch (error) {
+              console.error(`Gzip verification failed for ${name}`);
+              throw error;
+            }
             JSON.parse(text);
             fs.mkdirSync('data', { recursive: true });
             fs.writeFileSync(`data/${name}`, text);
