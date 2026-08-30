@@ -25,29 +25,45 @@ jobs:
           const fs = require('fs');
           const zlib = require('zlib');
 
-          const configs = [
-            { name: 'Map001.json', parts: 4, expectedBase64: 7984, expectedJson: 986362 },
-            { name: 'Tilesets.json', parts: 2, expectedBase64: 3632, expectedJson: 246734 }
-          ];
+          function read(path) {
+            return fs.readFileSync(path, 'utf8').trim();
+          }
 
-          for (const cfg of configs) {
-            const stem = cfg.name.replace('.json', '');
-            let packed = '';
-            for (let i = 1; i <= cfg.parts; i++) {
-              packed += fs.readFileSync(`recovery/${stem}.part${i}.b64`, 'utf8').trim();
+          // The first Map001 recovery segment contains a long ER repetition.
+          // Reconstruct that repetitive section deterministically to avoid copy/transmission drift.
+          const mapPart1 =
+            read('recovery/Map001.part1a.b64') +
+            ('g2Xhvvjhkt7cX/2ZvOB8ufszt6M79T' + 'RE'.repeat(234) + 'R') +
+            ('ER'.repeat(161) + 'E' + 'ZGWJQIAAKB0tx/cu3/1f88/cvI/l/4eSl+KheM4Et3Yv2IWyYqd7+oueG1JrTyFFV8x9sRDr/PYr4rNs7xU/xWr/wmsKfNjkmq6TpbiErkZk+pyt+mXU12fsH7d1HIzsKyjmHiDKeO6WL1XG8IQg9iUS7s1N7GNV6pzvdiC6MNlXNkjl') +
+            read('recovery/Map001.part1d.b64');
+
+          if (mapPart1.length !== 1996) {
+            throw new Error(`Map001 first segment mismatch: ${mapPart1.length} != 1996`);
+          }
+
+          const payloads = {
+            'Map001.json': mapPart1 + read('recovery/Map001.part2.b64') + read('recovery/Map001.part3.b64') + read('recovery/Map001.part4.b64'),
+            'Tilesets.json': read('recovery/Tilesets.part1.b64') + read('recovery/Tilesets.part2.b64')
+          };
+
+          const expected = {
+            'Map001.json': { base64: 7984, json: 986362 },
+            'Tilesets.json': { base64: 3632, json: 246734 }
+          };
+
+          for (const name of Object.keys(payloads)) {
+            const packed = payloads[name];
+            if (packed.length !== expected[name].base64) {
+              throw new Error(`${name} base64 length mismatch: ${packed.length} != ${expected[name].base64}`);
             }
-            if (packed.length !== cfg.expectedBase64) {
-              throw new Error(`${cfg.name} base64 length mismatch: ${packed.length} != ${cfg.expectedBase64}`);
-            }
-            const raw = Buffer.from(packed, 'base64');
-            const text = zlib.gunzipSync(raw).toString('utf8');
-            if (Buffer.byteLength(text) !== cfg.expectedJson) {
-              throw new Error(`${cfg.name} JSON size mismatch: ${Buffer.byteLength(text)} != ${cfg.expectedJson}`);
+            const text = zlib.gunzipSync(Buffer.from(packed, 'base64')).toString('utf8');
+            if (Buffer.byteLength(text) !== expected[name].json) {
+              throw new Error(`${name} JSON size mismatch: ${Buffer.byteLength(text)} != ${expected[name].json}`);
             }
             JSON.parse(text);
             fs.mkdirSync('data', { recursive: true });
-            fs.writeFileSync(`data/${cfg.name}`, text);
-            console.log(`Restored data/${cfg.name}: ${Buffer.byteLength(text)} bytes`);
+            fs.writeFileSync(`data/${name}`, text);
+            console.log(`Restored data/${name}: ${Buffer.byteLength(text)} bytes`);
           }
 
           const indexPath = 'index.html';
