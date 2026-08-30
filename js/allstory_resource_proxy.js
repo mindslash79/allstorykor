@@ -2,7 +2,7 @@
 (function() {
     'use strict';
     var NEoul = 'https://neoul-sok-ai.vercel.app/';
-    var ALLSTORY_RAW = 'https://raw.githubusercontent.com/mindslash79/allstorykor/main/';
+    var ALLSTORY_CDN = 'https://cdn.jsdelivr.net/gh/mindslash79/allstorykor@main/';
 
     if (window.PluginManager) PluginManager._path = NEoul + 'js/plugins/';
     if (window.AudioManager) AudioManager._path = NEoul + 'audio/';
@@ -23,7 +23,7 @@
         DataManager.loadDataFile = function(name, src) {
             // Map001 and Tilesets are intercepted by allstory_map_loader.js.
             var url = src === 'System.json'
-                ? ALLSTORY_RAW + 'data/System.json'
+                ? ALLSTORY_CDN + 'data/System.json'
                 : NEoul + 'data/' + src;
             var xhr = new XMLHttpRequest();
             xhr.open('GET', url);
