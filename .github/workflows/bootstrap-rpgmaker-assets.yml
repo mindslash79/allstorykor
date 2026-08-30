@@ -35,6 +35,15 @@ jobs:
             "js/libs/lz-string.js"
             "js/libs/iphone-inline-video.browser.js"
             "js/plugins/Community_Basic.js"
+            "data/Classes.json"
+            "data/Skills.json"
+            "data/Items.json"
+            "data/Weapons.json"
+            "data/Armors.json"
+            "data/Enemies.json"
+            "data/Troops.json"
+            "data/States.json"
+            "data/Animations.json"
             "img/tilesets/World_A1.png"
             "img/tilesets/World_A2.png"
             "img/tilesets/World_B.png"
@@ -88,6 +97,6 @@ jobs:
           fi
           git config user.name "allstory-bootstrap"
           git config user.email "actions@users.noreply.github.com"
-          git add js/rpg_*.js js/libs js/plugins/Community_Basic.js img/tilesets img/characters img/faces img/system fonts icon audio/se
-          git commit -m "Add standalone RPG Maker MV runtime assets"
+          git add js/rpg_*.js js/libs js/plugins/Community_Basic.js data/Classes.json data/Skills.json data/Items.json data/Weapons.json data/Armors.json data/Enemies.json data/Troops.json data/States.json data/Animations.json img/tilesets img/characters img/faces img/system fonts icon audio/se
+          git commit -m "Complete standalone RPG Maker MV web assets"
           git push
