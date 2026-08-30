@@ -1,0 +1,100 @@
+name: Fix opening playback synchronization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-opening-playback-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-opening-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Make movie and music start together
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('js/main.js')
+          text = path.read_text(encoding='utf-8')
+          start_marker = '    function startOpening() {'
+          end_marker = '};\n\nwindow.onload = function() {'
+          start = text.find(start_marker)
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Could not locate the opening playback block in js/main.js')
+
+          replacement = r'''    var playbackAttempt = 0;
+
+    function resetOpeningMedia() {
+        video.pause();
+        music.pause();
+        try { video.currentTime = 0; } catch (_) {}
+        try { music.currentTime = 0; } catch (_) {}
+    }
+
+    function showOpeningGate(attempt) {
+        if (finished || attempt !== playbackAttempt) return;
+        resetOpeningMedia();
+        gate.style.display = 'flex';
+    }
+
+    function startOpening() {
+        if (finished) return;
+
+        var attempt = ++playbackAttempt;
+        gate.style.display = 'none';
+        resetOpeningMedia();
+
+        var musicPromise;
+        var videoPromise;
+        try {
+            musicPromise = music.play();
+            videoPromise = video.play();
+        } catch (_) {
+            showOpeningGate(attempt);
+            return;
+        }
+
+        Promise.all([
+            Promise.resolve(musicPromise),
+            Promise.resolve(videoPromise)
+        ]).catch(function() {
+            // If either stream is blocked, stop and rewind both. One user tap
+            // then starts the movie and Velvet Shadows together from 0:00.
+            showOpeningGate(attempt);
+        });
+    }
+
+    video.addEventListener('ended', showTitle);
+    video.addEventListener('error', showTitle);
+
+    // Keep the gate reusable in case a browser rejects the first user attempt.
+    gate.addEventListener('click', startOpening);
+
+    // Try automatic playback first. Browsers that block audible autoplay keep
+    // the gate visible instead of silently continuing without the music.
+    startOpening();
+'''
+
+          path.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
+
+      - name: Commit the fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/main.js
+          if git diff --cached --quiet; then
+            echo "No change needed"
+            exit 0
+          fi
+          git commit -m "Keep opening movie and music synchronized"
+          git push
