@@ -1,0 +1,43 @@
+name: Fix web-safe opening music path
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-web-safe-audio-path.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create web-safe media filename and update code
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp 'audio/bgm/Velvet Shadows.mp3' 'audio/bgm/Velvet-Shadows.mp3'
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('js/main.js')
+          s = p.read_text(encoding='utf-8')
+          old = 'audio/bgm/Velvet%20Shadows.mp3'
+          new = 'audio/bgm/Velvet-Shadows.mp3'
+          if old not in s:
+              raise SystemExit(f'Expected path not found: {old}')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+          test "$(stat -c%s 'audio/bgm/Velvet-Shadows.mp3')" -eq 1200652
+          grep -q 'audio/bgm/Velvet-Shadows.mp3' js/main.js
+      - name: Commit fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'audio/bgm/Velvet-Shadows.mp3' js/main.js
+          git commit -m 'Use web-safe filename for opening music'
+          git push origin HEAD:main
