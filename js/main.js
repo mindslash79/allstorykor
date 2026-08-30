@@ -35,7 +35,7 @@ function startAllStoryAfterLogin() {
 
     var music = document.createElement('audio');
     music.id = 'allstoryOpeningMusic';
-    music.src = 'audio/bgm/Velvet%20Shadows.mp3';
+    music.src = 'audio/bgm/Velvet-Shadows.mp3';
     music.preload = 'auto';
     music.loop = true;
     music.volume = 0.82;
