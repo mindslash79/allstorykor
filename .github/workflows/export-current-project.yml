@@ -1,0 +1,34 @@
+name: Export current AllStory project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/export-current-project.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current opening assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(stat -c%s movies/Allstory_Opening.mp4)" -eq 898107
+          test "$(stat -c%s 'audio/bgm/Velvet Shadows.mp3')" -eq 1200652
+          test "$(stat -c%s img/titles1/AllStoryKorTitle.png)" -eq 1071254
+          node -e "const s=require('./data/System.json'); if(s.title1Name!=='AllStoryKorTitle') process.exit(1)"
+      - name: Upload exact repository tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: allstorykor-current-project
+          path: |
+            .
+            !.git
+          include-hidden-files: true
+          retention-days: 1
