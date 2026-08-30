@@ -1,0 +1,70 @@
+name: Restore AllStory opening media
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-opening-media.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.event.head_commit.message == 'Add one-time AllStory opening restore workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the web-optimized opening assets
+        shell: bash
+        env:
+          VIDEO_URL: "https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-619c-81f7-b09b-050ce597ed3f/raw?se=2026-08-30T13%3A32%3A32Z&sp=r&sv=2026-02-06&sr=b&scid=8731251c-fbe7-555d-8a10-7226c1b28e5e&skoid=732f244e-db13-47c3-bcc7-7ee02a9397bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-30T12%3A00%3A09Z&ske=2026-08-31T12%3A00%3A09Z&sks=b&skv=2026-02-06&sig=E0%2Bb9W4RlIfEnfVLj2bO7JSsUDD8b1uezmYROHziPSA%3D"
+          MUSIC_URL: "https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-e84c-81f7-a780-f9ba03e2ef1d/raw?se=2026-08-30T13%3A33%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=8be0283e-2284-538e-bb8b-b8e834347927&skoid=732f244e-db13-47c3-bcc7-7ee02a9397bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-29T18%3A43%3A21Z&ske=2026-08-30T18%3A43%3A21Z&sks=b&skv=2026-02-06&sig=XDoRBZWsNvZOazLDDfU2v3rAFzjvySK2cY7f/qQGY1k%3D"
+          TITLE_URL: "https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-97ec-81f7-a747-c17606f66cf2/raw?se=2026-08-30T13%3A33%3A12Z&sp=r&sv=2026-02-06&sr=b&scid=d6caae5a-3da8-5168-afc0-bf0c48e75d7d&skoid=732f244e-db13-47c3-bcc7-7ee02a9397bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-30T13%3A04%3A36Z&ske=2026-08-31T13%3A04%3A36Z&sks=b&skv=2026-02-06&sig=jFoutBZx4ZujUrmGsZxshAMYrJrlSXn8Jpd2cOSQtnA%3D"
+        run: |
+          set -euo pipefail
+          mkdir -p movies audio/bgm img/titles1
+          curl --fail --location --retry 3 --retry-all-errors --silent --show-error "$VIDEO_URL" -o movies/Allstory_Opening.mp4
+          curl --fail --location --retry 3 --retry-all-errors --silent --show-error "$MUSIC_URL" -o 'audio/bgm/Velvet Shadows.mp3'
+          curl --fail --location --retry 3 --retry-all-errors --silent --show-error "$TITLE_URL" -o img/titles1/AllStoryKorTitle.png
+          test "$(stat -c%s movies/Allstory_Opening.mp4)" -eq 898107
+          test "$(stat -c%s 'audio/bgm/Velvet Shadows.mp3')" -eq 1200652
+          test "$(stat -c%s img/titles1/AllStoryKorTitle.png)" -eq 1071254
+
+      - name: Enable the opening and restore the RPG Maker title configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+
+          const mainPath = 'js/main.js';
+          let main = fs.readFileSync(mainPath, 'utf8');
+          main = main.replace(
+            "// The original opening movie and music are not present in the repository yet.\n// Keep this false until both files below are added. This avoids two 404 requests\n// and lets authenticated players reach the title screen immediately.",
+            "// Web-optimized copies of the RPG Maker project's opening media are bundled below."
+          );
+          main = main.replace('enabled: false,', 'enabled: true,');
+          if (!main.includes('enabled: true,')) throw new Error('Opening flag was not enabled');
+          fs.writeFileSync(mainPath, main);
+
+          const systemPath = 'data/System.json';
+          const system = JSON.parse(fs.readFileSync(systemPath, 'utf8'));
+          system.title1Name = 'AllStoryKorTitle';
+          system.title2Name = '';
+          system.titleBgm = { name: '', pan: 0, pitch: 100, volume: 90 };
+          fs.writeFileSync(systemPath, JSON.stringify(system));
+          NODE
+
+      - name: Verify and commit the restored opening
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'enabled: true' js/main.js
+          node -e "const s=require('./data/System.json'); if(s.title1Name!=='AllStoryKorTitle') process.exit(1)"
+          git config user.name "allstory-opening-restore"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/main.js data/System.json movies/Allstory_Opening.mp4 'audio/bgm/Velvet Shadows.mp3' img/titles1/AllStoryKorTitle.png
+          git commit -m "Restore opening movie, music, and title image"
+          git push
