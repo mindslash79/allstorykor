@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/materialize-web-data.yml'
-      - 'js/allstory_embedded_data.js'
+      - 'recovery/**'
   workflow_dispatch:
 
 permissions:
@@ -25,27 +25,29 @@ jobs:
           const fs = require('fs');
           const zlib = require('zlib');
 
-          const bridgePath = 'js/allstory_embedded_data.js';
-          const src = fs.readFileSync(bridgePath, 'utf8');
-          const match = src.match(/var embedded = (\{.*\});\n\s*var originalLoadDataFile/s);
-          if (!match) throw new Error('Could not locate embedded data payload');
-          const embedded = JSON.parse(match[1]);
+          const configs = [
+            { name: 'Map001.json', parts: 4, expectedBase64: 7984, expectedJson: 986362 },
+            { name: 'Tilesets.json', parts: 2, expectedBase64: 3632, expectedJson: 246734 }
+          ];
 
-          for (const name of ['Map001.json', 'Tilesets.json']) {
-            if (!embedded[name]) throw new Error(`Missing embedded payload: ${name}`);
-            const raw = Buffer.from(embedded[name], 'base64');
-            console.log(`Checking ${name}: base64=${embedded[name].length}, gzip=${raw.length}`);
-            let text;
-            try {
-              text = zlib.gunzipSync(raw).toString('utf8');
-            } catch (error) {
-              console.error(`Gzip verification failed for ${name}`);
-              throw error;
+          for (const cfg of configs) {
+            const stem = cfg.name.replace('.json', '');
+            let packed = '';
+            for (let i = 1; i <= cfg.parts; i++) {
+              packed += fs.readFileSync(`recovery/${stem}.part${i}.b64`, 'utf8').trim();
+            }
+            if (packed.length !== cfg.expectedBase64) {
+              throw new Error(`${cfg.name} base64 length mismatch: ${packed.length} != ${cfg.expectedBase64}`);
+            }
+            const raw = Buffer.from(packed, 'base64');
+            const text = zlib.gunzipSync(raw).toString('utf8');
+            if (Buffer.byteLength(text) !== cfg.expectedJson) {
+              throw new Error(`${cfg.name} JSON size mismatch: ${Buffer.byteLength(text)} != ${cfg.expectedJson}`);
             }
             JSON.parse(text);
             fs.mkdirSync('data', { recursive: true });
-            fs.writeFileSync(`data/${name}`, text);
-            console.log(`Restored data/${name}: ${Buffer.byteLength(text)} bytes`);
+            fs.writeFileSync(`data/${cfg.name}`, text);
+            console.log(`Restored data/${cfg.name}: ${Buffer.byteLength(text)} bytes`);
           }
 
           const indexPath = 'index.html';
