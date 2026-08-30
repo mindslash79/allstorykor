@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   restore:
-    if: github.event.head_commit.message == 'Add one-time AllStory opening restore workflow'
+    if: github.event.head_commit.message == 'Retry AllStory opening asset restore'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,22 +32,15 @@ jobs:
           test "$(stat -c%s 'audio/bgm/Velvet Shadows.mp3')" -eq 1200652
           test "$(stat -c%s img/titles1/AllStoryKorTitle.png)" -eq 1071254
 
-      - name: Enable the opening and restore the RPG Maker title configuration
+      - name: Verify the restored project configuration
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs = require('fs');
-
-          const mainPath = 'js/main.js';
-          let main = fs.readFileSync(mainPath, 'utf8');
-          main = main.replace(
-            "// The original opening movie and music are not present in the repository yet.\n// Keep this false until both files below are added. This avoids two 404 requests\n// and lets authenticated players reach the title screen immediately.",
-            "// Web-optimized copies of the RPG Maker project's opening media are bundled below."
-          );
-          main = main.replace('enabled: false,', 'enabled: true,');
-          if (!main.includes('enabled: true,')) throw new Error('Opening flag was not enabled');
-          fs.writeFileSync(mainPath, main);
+          const main = fs.readFileSync('js/main.js', 'utf8');
+          if (!main.includes("audio/bgm/Velvet%20Shadows.mp3")) throw new Error('Opening music path is missing');
+          if (!main.includes("movies/Allstory_Opening.mp4")) throw new Error('Opening movie path is missing');
 
           const systemPath = 'data/System.json';
           const system = JSON.parse(fs.readFileSync(systemPath, 'utf8'));
@@ -57,14 +50,12 @@ jobs:
           fs.writeFileSync(systemPath, JSON.stringify(system));
           NODE
 
-      - name: Verify and commit the restored opening
+      - name: Commit the restored opening assets
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'enabled: true' js/main.js
-          node -e "const s=require('./data/System.json'); if(s.title1Name!=='AllStoryKorTitle') process.exit(1)"
           git config user.name "allstory-opening-restore"
           git config user.email "actions@users.noreply.github.com"
-          git add js/main.js data/System.json movies/Allstory_Opening.mp4 'audio/bgm/Velvet Shadows.mp3' img/titles1/AllStoryKorTitle.png
+          git add data/System.json movies/Allstory_Opening.mp4 'audio/bgm/Velvet Shadows.mp3' img/titles1/AllStoryKorTitle.png
           git commit -m "Restore opening movie, music, and title image"
           git push
