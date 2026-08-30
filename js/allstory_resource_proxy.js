@@ -10,9 +10,14 @@
     if (window.ImageManager) {
         ImageManager.loadBitmap = function(folder, filename, hue, smooth) {
             if (!filename) return this.loadEmptyBitmap();
-            var path = (folder === 'img/titles1/' && filename === 'AllStoryKorTitle')
-                ? 'assets/AllStoryKorTitle.jpg'
-                : NEoul + folder + encodeURIComponent(filename) + '.png';
+            var path;
+            if (folder === 'img/titles1/' && filename === 'AllStoryKorTitle') {
+                path = (window.AllStoryResolvedAssets && window.AllStoryResolvedAssets.titleUrl)
+                    ? window.AllStoryResolvedAssets.titleUrl
+                    : 'assets/AllStoryKorTitle.jpg';
+            } else {
+                path = NEoul + folder + encodeURIComponent(filename) + '.png';
+            }
             var bitmap = this.loadNormalBitmap(path, hue || 0);
             bitmap.smooth = smooth;
             return bitmap;
