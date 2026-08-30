@@ -1,11 +1,31 @@
 //=============================================================================
-// main.js - AllStoryKor opening flow
-// Velvet Shadows plays continuously from the opening movie into the title screen.
+// main.js - AllStoryKor account and opening flow
 //=============================================================================
 
 PluginManager.setup($plugins);
 
+// The original opening movie and music are not present in the repository yet.
+// Keep this false until both files below are added. This avoids two 404 requests
+// and lets authenticated players reach the title screen immediately.
+var ALLSTORY_OPENING_MEDIA = {
+    enabled: false,
+    musicUrl: 'audio/bgm/Velvet%20Shadows.mp3',
+    videoUrl: 'movies/Allstory_Opening.mp4'
+};
+
+function runAllStoryGame() {
+    document.body.style.margin = '0';
+    document.body.style.background = '#000';
+    document.body.style.overflow = '';
+    SceneManager.run(Scene_Boot);
+}
+
 function startAllStoryAfterLogin() {
+    if (!ALLSTORY_OPENING_MEDIA.enabled) {
+        runAllStoryGame();
+        return;
+    }
+
     var launched = false;
     var finished = false;
 
@@ -35,19 +55,19 @@ function startAllStoryAfterLogin() {
 
     var music = document.createElement('audio');
     music.id = 'allstoryOpeningMusic';
-    music.src = 'audio/bgm/Velvet%20Shadows.mp3';
+    music.src = ALLSTORY_OPENING_MEDIA.musicUrl;
     music.preload = 'auto';
     music.loop = true;
     music.volume = 0.82;
 
     var video = document.createElement('video');
     video.id = 'allstoryOpeningVideo';
-    video.src = 'movies/Allstory_Opening.mp4';
+    video.src = ALLSTORY_OPENING_MEDIA.videoUrl;
     video.preload = 'auto';
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
-    video.muted = true; // video is intentionally silent; music comes from the audio element
+    video.muted = true;
     video.controls = false;
     video.style.position = 'fixed';
     video.style.left = '0';
@@ -94,11 +114,11 @@ function startAllStoryAfterLogin() {
     document.body.appendChild(gate);
 
     function stopOpeningMusic() {
-        var a = document.getElementById('allstoryOpeningMusic');
-        if (a) {
-            a.pause();
-            a.currentTime = 0;
-            if (a.parentNode) a.parentNode.removeChild(a);
+        var audio = document.getElementById('allstoryOpeningMusic');
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+            if (audio.parentNode) audio.parentNode.removeChild(audio);
         }
     }
     window.stopOpeningMusic = stopOpeningMusic;
@@ -118,7 +138,6 @@ function startAllStoryAfterLogin() {
         if (finished) return;
         finished = true;
 
-        // Fade the end of the movie into pure white.
         white.style.transition = 'opacity 0.9s ease-in-out';
         white.style.opacity = '1';
 
@@ -126,8 +145,6 @@ function startAllStoryAfterLogin() {
             cleanupVideo();
             runGame();
 
-            // Let Scene_Title and its background/menu render under the white screen,
-            // then slowly reveal it while Velvet Shadows keeps playing uninterrupted.
             setTimeout(function() {
                 white.style.transition = 'opacity 2.8s ease-in-out';
                 white.style.opacity = '0';
@@ -144,11 +161,11 @@ function startAllStoryAfterLogin() {
         music.currentTime = 0;
         video.currentTime = 0;
 
-        var mp = music.play();
-        var vp = video.play();
+        var musicPromise = music.play();
+        var videoPromise = video.play();
         Promise.all([
-            mp && mp.catch ? mp : Promise.resolve(),
-            vp && vp.catch ? vp : Promise.resolve()
+            musicPromise && musicPromise.catch ? musicPromise : Promise.resolve(),
+            videoPromise && videoPromise.catch ? videoPromise : Promise.resolve()
         ]).catch(function() {
             video.pause();
             music.pause();
@@ -158,12 +175,9 @@ function startAllStoryAfterLogin() {
 
     video.addEventListener('ended', showTitle);
     video.addEventListener('error', showTitle);
-
     gate.addEventListener('pointerdown', startOpening, { once: true });
     gate.addEventListener('click', startOpening, { once: true });
 
-    // Muted video can normally autoplay; audible music may be blocked by browsers.
-    // If it is blocked, wait for one tap so movie and music start together at 0:00.
     var audioPromise = music.play();
     var videoPromise = video.play();
 
@@ -179,7 +193,7 @@ function startAllStoryAfterLogin() {
             gate.style.display = 'flex';
         });
     }
-};
+}
 
 window.onload = function() {
     var platform = window.AllstoryPlatform;
