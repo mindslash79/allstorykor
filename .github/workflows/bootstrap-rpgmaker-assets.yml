@@ -1,0 +1,93 @@
+name: Bootstrap standalone RPG Maker MV assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap-rpgmaker-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy common RPG Maker MV runtime assets into this repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://neoul-sok-ai.vercel.app"
+          files=(
+            "js/rpg_core.js"
+            "js/rpg_managers.js"
+            "js/rpg_objects.js"
+            "js/rpg_scenes.js"
+            "js/rpg_sprites.js"
+            "js/rpg_windows.js"
+            "js/libs/pixi.js"
+            "js/libs/pixi-tilemap.js"
+            "js/libs/pixi-picture.js"
+            "js/libs/fpsmeter.js"
+            "js/libs/lz-string.js"
+            "js/libs/iphone-inline-video.browser.js"
+            "js/plugins/Community_Basic.js"
+            "img/tilesets/World_A1.png"
+            "img/tilesets/World_A2.png"
+            "img/tilesets/World_B.png"
+            "img/tilesets/World_C.png"
+            "img/characters/Actor1.png"
+            "img/characters/Actor2.png"
+            "img/characters/Actor3.png"
+            "img/characters/Vehicle.png"
+            "img/characters/!Crystal.png"
+            "img/faces/Actor1.png"
+            "img/faces/Actor2.png"
+            "img/faces/Actor3.png"
+            "img/system/Window.png"
+            "img/system/IconSet.png"
+            "img/system/ButtonSet.png"
+            "img/system/Loading.png"
+            "img/system/Shadow1.png"
+            "img/system/Shadow2.png"
+            "img/system/Balloon.png"
+            "fonts/gamefont.css"
+            "fonts/mplus-1m-regular.ttf"
+            "icon/icon.png"
+            "audio/se/Cursor2.ogg"
+            "audio/se/Cursor2.m4a"
+            "audio/se/Decision1.ogg"
+            "audio/se/Decision1.m4a"
+            "audio/se/Cancel2.ogg"
+            "audio/se/Cancel2.m4a"
+            "audio/se/Buzzer1.ogg"
+            "audio/se/Buzzer1.m4a"
+            "audio/se/Equip1.ogg"
+            "audio/se/Equip1.m4a"
+            "audio/se/Save.ogg"
+            "audio/se/Save.m4a"
+            "audio/se/Load.ogg"
+            "audio/se/Load.m4a"
+          )
+
+          for path in "${files[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            curl --fail --location --retry 3 --silent --show-error "$BASE/$path" -o "$path"
+            test -s "$path"
+          done
+
+      - name: Commit copied assets
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No common assets changed."
+            exit 0
+          fi
+          git config user.name "allstory-bootstrap"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/rpg_*.js js/libs js/plugins/Community_Basic.js img/tilesets img/characters img/faces img/system fonts icon audio/se
+          git commit -m "Add standalone RPG Maker MV runtime assets"
+          git push
