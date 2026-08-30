@@ -1,4 +1,4 @@
-// Loads AllStoryKor title image, opening video, and Velvet Shadows from small CDN chunks.
+// Loads the full Velvet Shadows track from small CDN chunks.
 (function() {
     'use strict';
     var BASE = 'https://cdn.jsdelivr.net/gh/mindslash79/allstorykor@main/assets/chunks/';
@@ -23,15 +23,11 @@
     }
 
     async function load() {
-        var values = await Promise.all([
-            readParts('title', 3),
-            readParts('opening', 1),
-            readParts('music', 9)
-        ]);
+        var music = await readParts('music', 5);
         return {
-            titleUrl: base64ToBlobUrl(values[0], 'image/jpeg'),
-            openingUrl: base64ToBlobUrl(values[1], 'video/mp4'),
-            musicUrl: base64ToBlobUrl(values[2], 'audio/mpeg')
+            titleUrl: 'assets/AllStoryKorTitle.jpg',
+            openingUrl: 'assets/Allstory_Opening.mp4',
+            musicUrl: base64ToBlobUrl(music, 'audio/mpeg')
         };
     }
 
